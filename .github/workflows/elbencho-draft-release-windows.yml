@@ -112,7 +112,8 @@ jobs:
           mkdir -p ../win-test-tmp
           tmp_win=$(cygpath -w "$(cd ../win-test-tmp && pwd)")
           tmp=$("$cyg_bin/cygpath.exe" -u "$tmp_win")
-          "$cyg_bin/bash.exe" -lc "command -v prove && command -v jq && command -v timeout && cd '${elb}' && test -x bin/elbencho.exe && tests/run-tests.sh -j 4 -T '${tmp}'"
+          script=$(cygpath -m "$(cd .. && pwd)/scripts/cygwin-test.sh")
+          MSYS_NO_PATHCONV=1 "$cyg_bin/bash.exe" -lc "bash '$script' '$elb' '$tmp'"
 
       - name: Upload the zip to the draft release
         shell: bash
