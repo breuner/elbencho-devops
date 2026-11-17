@@ -89,7 +89,9 @@ jobs:
           repo_win=$(cygpath -w "$(pwd)")
           elb=$("$cyg_bin/cygpath.exe" -u "$repo_win")
           echo "Cygwin source path: ${elb}"
-          "$cyg_bin/bash.exe" -lc "git config --global --add safe.directory '${elb}' && cd '${elb}' && ./build_helpers/cygwin/create_package.sh"
+          script_win=$(cygpath -w "$(cd .. && pwd)/scripts/cygwin-build.sh")
+          script=$("$cyg_bin/cygpath.exe" -u "$script_win")
+          "$cyg_bin/bash.exe" "$script" "$elb"
 
       - name: Test the Windows executable
         shell: bash
