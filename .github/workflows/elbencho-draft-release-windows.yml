@@ -50,21 +50,31 @@ jobs:
           $ErrorActionPreference = "Stop"
           $setup = Join-Path $env:RUNNER_TEMP "setup-x86_64.exe"
           Invoke-WebRequest -Uri "https://cygwin.com/setup-x86_64.exe" -OutFile $setup
-          # cygserver is required because create_package.sh copies /usr/sbin/cygserver.exe.
-          # Base packages, including coreutils, are installed by setup alongside this list.
-          $packages = "bash,vim,cmake,gcc-g++,git,jq,libboost-devel,libssl-devel,make,perl,procps-ng,wget,zip,cygserver"
-          & $setup `
-            --quiet-mode `
-            --no-shortcuts `
-            --no-startmenu `
-            --no-desktop `
-            --site "https://mirrors.kernel.org/sourceware/cygwin/" `
-            --root "C:\cygwin64" `
-            --local-package-dir (Join-Path $env:RUNNER_TEMP "cygwin-packages") `
-            --packages $packages
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (-not (Test-Path "C:\cygwin64\bin\g++.exe")) { throw "Cygwin g++ was not installed" }
-          if (-not (Test-Path "C:\cygwin64\usr\sbin\cygserver.exe")) { throw "Cygwin cygserver was not installed" }
+          # cygserver.exe and cygpath.exe come from the cygwin package. There is no
+          # separate cygserver package. --wait keeps setup from returning while
+          # its restarted child is still installing.
+          $packages = "bash,vim,cmake,gcc-g++,git,jq,libboost-devel,libssl-devel,make,perl,procps-ng,wget,zip,cygwin"
+          $proc = Start-Process -FilePath $setup -Wait -PassThru -NoNewWindow -ArgumentList @(
+            "--quiet-mode",
+            "--wait",
+            "--no-shortcuts",
+            "--no-startmenu",
+            "--no-desktop",
+            "--site", "https://mirrors.kernel.org/sourceware/cygwin/",
+            "--root", "C:\cygwin64",
+            "--local-package-dir", (Join-Path $env:RUNNER_TEMP "cygwin-packages"),
+            "--packages", $packages
+          )
+          if ($proc.ExitCode -ne 0) { exit $proc.ExitCode }
+          foreach ($path in @(
+            "C:\cygwin64\bin\bash.exe",
+            "C:\cygwin64\bin\cygpath.exe",
+            "C:\cygwin64\bin\g++.exe",
+            "C:\cygwin64\usr\sbin\cygserver.exe"
+          )) {
+            if (-not (Test-Path $path)) { throw "Missing ${path}" }
+            Write-Output "found $path"
+          }
 
       - name: Build the Windows package
         shell: bash
@@ -72,8 +82,10 @@ jobs:
         run: |
           set -euo pipefail
           git log -1 --oneline
-          # Git Bash addresses C: as /c. Cygwin's /cygdrive paths are not visible here.
-          cyg_bin=/c/cygwin64/bin
+          # Git Bash accepts C:/ paths. /c and /cygdrive are not both mounted.
+          cyg_bin="C:/cygwin64/bin"
+          test -x "$cyg_bin/cygpath.exe"
+          test -x "$cyg_bin/bash.exe"
           repo_win=$(cygpath -w "$(pwd)")
           elb=$("$cyg_bin/cygpath.exe" -u "$repo_win")
           echo "Cygwin source path: ${elb}"
@@ -84,7 +96,9 @@ jobs:
         working-directory: elbencho
         run: |
           set -euo pipefail
-          cyg_bin=/c/cygwin64/bin
+          cyg_bin="C:/cygwin64/bin"
+          test -x "$cyg_bin/cygpath.exe"
+          test -x "$cyg_bin/bash.exe"
           repo_win=$(cygpath -w "$(pwd)")
           elb=$("$cyg_bin/cygpath.exe" -u "$repo_win")
           mkdir -p ../win-test-tmp
