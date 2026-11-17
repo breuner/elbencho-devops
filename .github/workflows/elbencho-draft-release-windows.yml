@@ -72,23 +72,25 @@ jobs:
         run: |
           set -euo pipefail
           git log -1 --oneline
-          # Git Bash pwd is a Unix path. Convert that to a Windows path, then to Cygwin.
+          # Git Bash addresses C: as /c. Cygwin's /cygdrive paths are not visible here.
+          cyg_bin=/c/cygwin64/bin
           repo_win=$(cygpath -w "$(pwd)")
-          elb=$(/cygdrive/c/cygwin64/bin/cygpath.exe -u "$repo_win")
+          elb=$("$cyg_bin/cygpath.exe" -u "$repo_win")
           echo "Cygwin source path: ${elb}"
-          /cygdrive/c/cygwin64/bin/bash.exe -lc "git config --global --add safe.directory '${elb}' && cd '${elb}' && ./build_helpers/cygwin/create_package.sh"
+          "$cyg_bin/bash.exe" -lc "git config --global --add safe.directory '${elb}' && cd '${elb}' && ./build_helpers/cygwin/create_package.sh"
 
       - name: Test the Windows executable
         shell: bash
         working-directory: elbencho
         run: |
           set -euo pipefail
+          cyg_bin=/c/cygwin64/bin
           repo_win=$(cygpath -w "$(pwd)")
-          elb=$(/cygdrive/c/cygwin64/bin/cygpath.exe -u "$repo_win")
+          elb=$("$cyg_bin/cygpath.exe" -u "$repo_win")
           mkdir -p ../win-test-tmp
           tmp_win=$(cygpath -w "$(cd ../win-test-tmp && pwd)")
-          tmp=$(/cygdrive/c/cygwin64/bin/cygpath.exe -u "$tmp_win")
-          /cygdrive/c/cygwin64/bin/bash.exe -lc "command -v prove && command -v jq && command -v timeout && cd '${elb}' && test -x bin/elbencho.exe && tests/run-tests.sh -j 4 -T '${tmp}'"
+          tmp=$("$cyg_bin/cygpath.exe" -u "$tmp_win")
+          "$cyg_bin/bash.exe" -lc "command -v prove && command -v jq && command -v timeout && cd '${elb}' && test -x bin/elbencho.exe && tests/run-tests.sh -j 4 -T '${tmp}'"
 
       - name: Upload the zip to the draft release
         shell: bash

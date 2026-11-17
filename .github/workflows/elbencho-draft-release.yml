@@ -33,7 +33,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: elbencho-draft-${{ inputs.tag }}
+  group: elbencho-draft-${{ inputs.tag }}-${{ inputs.components }}
   cancel-in-progress: false
 
 jobs:

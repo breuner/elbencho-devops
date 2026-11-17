@@ -32,8 +32,8 @@ keeps its title and notes.
 - `elbencho-docker-archive-amd64.tar.gz`
 - `elbencho-docker-archive-arm64.tar.gz`
 
-The docker archives are gzip-compressed images produced with
-`docker build --output type=docker`. Load one directly:
+The docker archives are gzip-compressed `docker save` images. Load one
+directly:
 
 ```bash
 docker load -i elbencho-docker-archive-amd64.tar.gz

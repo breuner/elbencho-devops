@@ -56,16 +56,18 @@ jobs:
           esac
           archive="elbencho-docker-archive-${ARCH}.tar.gz"
           mkdir -p release
+          # The default GitHub-hosted docker driver rejects the docker exporter
+          # (--output type=docker). docker save writes the same archive, and
+          # docker load reads it after gzip without a separate decompress step.
           docker build \
               --progress plain \
               --pull \
               -t "elbencho:ubuntu2604" \
-              --output "type=docker,dest=${RUNNER_TEMP}/image.tar" \
               -f elbencho/build_helpers/docker/Dockerfile.ubuntu2604.local \
               elbencho
-          gzip -c "${RUNNER_TEMP}/image.tar" > "release/${archive}"
-          rm -f "${RUNNER_TEMP}/image.tar"
+          docker save elbencho:ubuntu2604 | gzip > "release/${archive}"
           gzip -t "release/${archive}"
+          docker image rm elbencho:ubuntu2604
           docker builder prune -af
           docker load -i "release/${archive}"
           docker image rm elbencho:ubuntu2604 || true
