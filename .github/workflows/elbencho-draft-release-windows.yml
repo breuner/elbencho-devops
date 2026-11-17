@@ -95,7 +95,9 @@ jobs:
           # reaches Cygwin bash unchanged.
           script=$(cygpath -m "$(cd .. && pwd)/scripts/cygwin-build.sh")
           echo "Build script: ${script}"
-          MSYS_NO_PATHCONV=1 "$cyg_bin/bash.exe" "$script" "$elb"
+          # -lc picks up the Cygwin profile. MSYS_NO_PATHCONV stops Git Bash
+          # from rewriting the /cygdrive source path in this one command line.
+          MSYS_NO_PATHCONV=1 "$cyg_bin/bash.exe" -lc "bash '$script' '$elb'"
 
       - name: Test the Windows executable
         shell: bash
