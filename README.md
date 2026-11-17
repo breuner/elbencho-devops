@@ -42,10 +42,3 @@ docker load -i elbencho-docker-archive-amd64.tar.gz
 Static Linux executables are tested with `tests/run-tests.sh -a -j 4` before
 upload. The Windows executable is tested with `tests/run-tests.sh -j 4` before
 upload.
-
-## Credentials
-
-The workflow uses the Actions secret `ELBENCHO_RELEASE_TOKEN`: a fine-grained
-personal access token for `breuner/elbencho` with Contents read and write.
-That token creates the draft and uploads assets. The repository's own
-`GITHUB_TOKEN` cannot write to another repository.
