@@ -1,0 +1,102 @@
+# SPDX-FileCopyrightText: 2026 Sven Breuner <sven.breuner@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: elbencho draft release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing elbencho git tag
+        required: true
+        type: string
+      release_title:
+        description: Draft title, used only when the draft is created
+        required: true
+        type: string
+      components:
+        description: Which artifacts to build
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - static-amd64
+          - static-arm64
+          - windows
+          - docker-amd64
+          - docker-arm64
+
+run-name: Draft ${{ inputs.release_title }} (${{ inputs.tag }}, ${{ inputs.components }})
+
+permissions:
+  contents: read
+
+concurrency:
+  group: elbencho-draft-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: draft
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out workflow scripts
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Create or reuse the draft release
+        env:
+          GH_TOKEN: ${{ secrets.ELBENCHO_RELEASE_TOKEN }}
+          TAG: ${{ inputs.tag }}
+          RELEASE_TITLE: ${{ inputs.release_title }}
+        run: scripts/prepare-draft.sh
+
+  static-amd64:
+    name: static amd64
+    needs: prepare
+    if: inputs.components == 'all' || inputs.components == 'static-amd64'
+    uses: ./.github/workflows/elbencho-draft-release-static.yml
+    with:
+      tag: ${{ inputs.tag }}
+      arch: amd64
+    secrets: inherit
+
+  static-arm64:
+    name: static arm64
+    needs: prepare
+    if: inputs.components == 'all' || inputs.components == 'static-arm64'
+    uses: ./.github/workflows/elbencho-draft-release-static.yml
+    with:
+      tag: ${{ inputs.tag }}
+      arch: arm64
+    secrets: inherit
+
+  windows:
+    name: windows
+    needs: prepare
+    if: inputs.components == 'all' || inputs.components == 'windows'
+    uses: ./.github/workflows/elbencho-draft-release-windows.yml
+    with:
+      tag: ${{ inputs.tag }}
+    secrets: inherit
+
+  docker-amd64:
+    name: docker amd64
+    needs: prepare
+    if: inputs.components == 'all' || inputs.components == 'docker-amd64'
+    uses: ./.github/workflows/elbencho-draft-release-docker.yml
+    with:
+      tag: ${{ inputs.tag }}
+      arch: amd64
+    secrets: inherit
+
+  docker-arm64:
+    name: docker arm64
+    needs: prepare
+    if: inputs.components == 'all' || inputs.components == 'docker-arm64'
+    uses: ./.github/workflows/elbencho-draft-release-docker.yml
+    with:
+      tag: ${{ inputs.tag }}
+      arch: arm64
+    secrets: inherit

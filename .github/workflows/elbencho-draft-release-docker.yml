@@ -1,0 +1,77 @@
+# SPDX-FileCopyrightText: 2026 Sven Breuner <sven.breuner@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: elbencho draft release docker archives
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Existing elbencho git tag
+        required: true
+        type: string
+      arch:
+        description: amd64 or arm64
+        required: true
+        type: string
+    secrets:
+      ELBENCHO_RELEASE_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: docker ${{ inputs.arch }}
+    runs-on: ${{ inputs.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 360
+    steps:
+      - name: Check out workflow scripts
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Check out elbencho
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: breuner/elbencho
+          ref: ${{ inputs.tag }}
+          path: elbencho
+
+      - name: Free disk space
+        run: scripts/free-runner-disk.sh
+
+      - name: Build the Ubuntu image archive
+        env:
+          ARCH: ${{ inputs.arch }}
+          DOCKER_BUILDKIT: "1"
+        run: |
+          set -euo pipefail
+          git -C elbencho log -1 --oneline
+          case "$ARCH" in
+              amd64|arm64) ;;
+              *)
+                  echo "ERROR: arch must be amd64 or arm64, got: ${ARCH}" >&2
+                  exit 1
+                  ;;
+          esac
+          archive="elbencho-docker-archive-${ARCH}.tar.gz"
+          mkdir -p release
+          docker build \
+              --progress plain \
+              --pull \
+              -t "elbencho:ubuntu2604" \
+              --output "type=docker,dest=${RUNNER_TEMP}/image.tar" \
+              -f elbencho/build_helpers/docker/Dockerfile.ubuntu2604.local \
+              elbencho
+          gzip -c "${RUNNER_TEMP}/image.tar" > "release/${archive}"
+          rm -f "${RUNNER_TEMP}/image.tar"
+          gzip -t "release/${archive}"
+          docker builder prune -af
+          docker load -i "release/${archive}"
+          docker image rm elbencho:ubuntu2604 || true
+
+      - name: Upload the archive to the draft release
+        env:
+          GH_TOKEN: ${{ secrets.ELBENCHO_RELEASE_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: scripts/upload-draft-assets.sh release/elbencho-docker-archive-*.tar.gz

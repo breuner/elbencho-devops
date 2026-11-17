@@ -1,0 +1,93 @@
+# SPDX-FileCopyrightText: 2026 Sven Breuner <sven.breuner@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: elbencho draft release windows package
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Existing elbencho git tag
+        required: true
+        type: string
+    secrets:
+      ELBENCHO_RELEASE_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: windows
+    runs-on: windows-latest
+    timeout-minutes: 360
+    steps:
+      - name: Keep LF line endings
+        shell: bash
+        run: git config --global core.autocrlf false
+
+      - name: Check out workflow scripts
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Check out elbencho
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: breuner/elbencho
+          ref: ${{ inputs.tag }}
+          path: elbencho
+
+      - name: Restore LF in the elbencho checkout
+        shell: bash
+        working-directory: elbencho
+        run: |
+          git config core.autocrlf false
+          git checkout --force HEAD -- .
+
+      - name: Install Cygwin
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $setup = Join-Path $env:RUNNER_TEMP "setup-x86_64.exe"
+          Invoke-WebRequest -Uri "https://cygwin.com/setup-x86_64.exe" -OutFile $setup
+          # cygserver is required because create_package.sh copies /usr/sbin/cygserver.exe.
+          # Base packages, including coreutils, are installed by setup alongside this list.
+          $packages = "bash,vim,cmake,gcc-g++,git,jq,libboost-devel,libssl-devel,make,perl,procps-ng,wget,zip,cygserver"
+          & $setup `
+            --quiet-mode `
+            --no-shortcuts `
+            --no-startmenu `
+            --no-desktop `
+            --site "https://mirrors.kernel.org/sourceware/cygwin/" `
+            --root "C:\cygwin64" `
+            --local-package-dir (Join-Path $env:RUNNER_TEMP "cygwin-packages") `
+            --packages $packages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path "C:\cygwin64\bin\g++.exe")) { throw "Cygwin g++ was not installed" }
+          if (-not (Test-Path "C:\cygwin64\usr\sbin\cygserver.exe")) { throw "Cygwin cygserver was not installed" }
+
+      - name: Build the Windows package
+        shell: bash
+        run: |
+          set -euo pipefail
+          win_path="${GITHUB_WORKSPACE}\\elbencho"
+          elb=$(/cygdrive/c/cygwin64/bin/cygpath.exe -u "$win_path")
+          echo "Cygwin source path: ${elb}"
+          git -C elbencho log -1 --oneline
+          /cygdrive/c/cygwin64/bin/bash.exe -lc "git config --global --add safe.directory '${elb}' && cd '${elb}' && ./build_helpers/cygwin/create_package.sh"
+
+      - name: Test the Windows executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          win_path="${GITHUB_WORKSPACE}\\elbencho"
+          elb=$(/cygdrive/c/cygwin64/bin/cygpath.exe -u "$win_path")
+          tmp=$(/cygdrive/c/cygwin64/bin/cygpath.exe -u "${RUNNER_TEMP}\\elbencho-tests")
+          /cygdrive/c/cygwin64/bin/bash.exe -lc "command -v prove && command -v jq && command -v timeout && cd '${elb}' && tests/run-tests.sh -j 4 -T '${tmp}'"
+
+      - name: Upload the zip to the draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.ELBENCHO_RELEASE_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: scripts/upload-draft-assets.sh elbencho/packaging/cygwin/elbencho-windows.zip

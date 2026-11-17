@@ -1,0 +1,112 @@
+# SPDX-FileCopyrightText: 2026 Sven Breuner <sven.breuner@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: elbencho draft release static packages
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Existing elbencho git tag
+        required: true
+        type: string
+      arch:
+        description: amd64 or arm64
+        required: true
+        type: string
+    secrets:
+      ELBENCHO_RELEASE_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: static ${{ inputs.arch }}
+    runs-on: ${{ inputs.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 360
+    steps:
+      - name: Check out workflow scripts
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Check out elbencho
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: breuner/elbencho
+          ref: ${{ inputs.tag }}
+          path: elbencho
+
+      - name: Free disk space
+        run: scripts/free-runner-disk.sh
+
+      - name: Build static packages
+        working-directory: elbencho
+        env:
+          ARCH: ${{ inputs.arch }}
+          DOCKER_BUILDKIT: "1"
+        run: |
+          set -euo pipefail
+          git log -1 --oneline
+          case "$ARCH" in
+              amd64|arm64) ;;
+              *)
+                  echo "ERROR: arch must be amd64 or arm64, got: ${ARCH}" >&2
+                  exit 1
+                  ;;
+          esac
+          args=()
+          if [ "$ARCH" = "arm64" ]; then
+              args+=(--build-arg ELBENCHO_MARCH=armv8-a+crc+crypto+simd)
+          fi
+          docker build \
+              "${args[@]}" \
+              --progress plain \
+              --pull \
+              --target export-tar \
+              --output type=local,dest=./packaging \
+              -f build_helpers/docker/Dockerfile.alpine-static.local \
+              .
+
+      - name: Test the static executable and collect packages
+        working-directory: elbencho
+        env:
+          ARCH: ${{ inputs.arch }}
+        run: |
+          set -euo pipefail
+          case "$ARCH" in
+              amd64)
+                  tar_name=elbencho-static-x86_64.tar.gz
+                  rpm_name=elbencho-static.x86_64.rpm
+                  deb_name=elbencho-static_amd64.deb
+                  ;;
+              arm64)
+                  tar_name=elbencho-static-aarch64.tar.gz
+                  rpm_name=elbencho-static.aarch64.rpm
+                  deb_name=elbencho-static_arm64.deb
+                  ;;
+          esac
+          shopt -s nullglob
+          tars=(packaging/elbencho*static*.tar.gz)
+          rpms=(packaging/elbencho*.rpm)
+          debs=(packaging/elbencho*.deb)
+          if [ "${#tars[@]}" -ne 1 ] || [ "${#rpms[@]}" -ne 1 ] || [ "${#debs[@]}" -ne 1 ]; then
+              echo "ERROR: expected one tar, one rpm and one deb in packaging/." >&2
+              ls -la packaging >&2 || true
+              exit 1
+          fi
+          mkdir -p bin release
+          tar -xzf "${tars[0]}" -C bin
+          test -x bin/elbencho
+          bin/elbencho --version
+          ../scripts/install-test-tools.sh
+          tests/run-tests.sh -a -j 4 -T "${RUNNER_TEMP}/elbencho-tests"
+          mv "${tars[0]}" "release/${tar_name}"
+          mv "${rpms[0]}" "release/${rpm_name}"
+          mv "${debs[0]}" "release/${deb_name}"
+
+      - name: Upload packages to the draft release
+        env:
+          GH_TOKEN: ${{ secrets.ELBENCHO_RELEASE_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: scripts/upload-draft-assets.sh elbencho/release/*
