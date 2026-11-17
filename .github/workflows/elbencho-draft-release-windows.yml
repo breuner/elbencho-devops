@@ -89,9 +89,13 @@ jobs:
           repo_win=$(cygpath -w "$(pwd)")
           elb=$("$cyg_bin/cygpath.exe" -u "$repo_win")
           echo "Cygwin source path: ${elb}"
-          script_win=$(cygpath -w "$(cd .. && pwd)/scripts/cygwin-build.sh")
-          script=$("$cyg_bin/cygpath.exe" -u "$script_win")
-          "$cyg_bin/bash.exe" "$script" "$elb"
+          # Git Bash rewrites a /cygdrive argument into a path under its own
+          # install dir when it launches a Windows executable. Pass a D:/ path
+          # and disable that conversion so the Cygwin path of the source tree
+          # reaches Cygwin bash unchanged.
+          script=$(cygpath -m "$(cd .. && pwd)/scripts/cygwin-build.sh")
+          echo "Build script: ${script}"
+          MSYS_NO_PATHCONV=1 "$cyg_bin/bash.exe" "$script" "$elb"
 
       - name: Test the Windows executable
         shell: bash
