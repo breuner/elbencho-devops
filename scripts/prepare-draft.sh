@@ -47,6 +47,9 @@ trap 'rm -f "$notes"' EXIT
 gh api "repos/${repo}/releases/latest" --jq '.body // ""' > "$notes"
 latest_name=$(gh api "repos/${repo}/releases/latest" --jq '.tag_name')
 echo "Copied release notes from the latest published stable release (${latest_name})."
+if [ ! -s "$notes" ]; then
+    printf 'Release notes from %s were empty.\n' "$latest_name" > "$notes"
+fi
 
 gh release create "$TAG" \
     --repo "$repo" \
