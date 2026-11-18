@@ -62,15 +62,16 @@ jobs:
           docker build \
               --progress plain \
               --pull \
-              -t "elbencho:ubuntu2604" \
+              -t "elbencho:latest" \
               -f elbencho/build_helpers/docker/Dockerfile.ubuntu2604.local \
               elbencho
-          docker save elbencho:ubuntu2604 | gzip > "release/${archive}"
+          docker save elbencho:latest | gzip > "release/${archive}"
           gzip -t "release/${archive}"
-          docker image rm elbencho:ubuntu2604
+          docker image rm elbencho:latest
           docker builder prune -af
           docker load -i "release/${archive}"
-          docker image rm elbencho:ubuntu2604 || true
+          docker image inspect elbencho:latest >/dev/null
+          docker image rm elbencho:latest
 
       - name: Upload the archive to the draft release
         env:
