@@ -11,8 +11,30 @@
 # .arch line, and a translation unit that already asks for SVE is left alone
 # so optional kernels can still be built.
 
+import base64
 import sys
 from pathlib import Path
+
+# GCC names the rounding-multiply extension rdma. An output file ending in .s
+# must not be treated as an assembly source, or the march flag is skipped.
+wrapper = """#!/bin/sh
+real=$1
+shift
+prev=
+for a in "$@"; do
+    case "$prev" in
+        -o) ;;
+        *)
+            case "$a" in
+                *.S|*.s|*+sve*) exec "$real" "$@" ;;
+            esac
+            ;;
+    esac
+    prev=$a
+done
+exec "$real" "$@" -march=armv8.2-a+crc+crypto+fp16+dotprod+rdma+rcpc+flagm
+"""
+wrapper_b64 = base64.b64encode(wrapper.encode()).decode()
 
 dockerfile = Path(
     sys.argv[1]
@@ -20,25 +42,25 @@ dockerfile = Path(
     else "elbencho/build_helpers/docker/Dockerfile.ubuntu2604.local")
 text = dockerfile.read_text()
 needle = "    cd /root/elbencho && \\\n"
-insert = r"""    mkdir -p /usr/local/bin && \
-    march="-march=armv8.2-a+crc+crypto+fp16+dotprod+rdm+rcpc+flagm" && \
-    echo "arm64 compiler march: $march" && \
-    for cc in gcc g++ cc c++; do \
-        real=/usr/bin/$cc; \
-        printf '%s\n' '#!/bin/sh' \
-            'for a in "$@"; do case "$a" in *.S|*.s|*+sve*) exec '"$real"' "$@";; esac; done' \
-            'exec '"$real"' "$@" '"$march" \
-            > /usr/local/bin/$cc; \
-    done && \
-    chmod +x /usr/local/bin/gcc /usr/local/bin/g++ /usr/local/bin/cc /usr/local/bin/c++ && \
-    export PATH="/usr/local/bin:${PATH}" && \
-    printf '%s\n' 'void fill(int *p, int n) { for (int i = 0; i < n; ++i) p[i] = i; }' > /tmp/sve-check.c && \
-    /usr/local/bin/gcc -O3 -S -o /tmp/sve-check.s /tmp/sve-check.c && \
-    if grep -E 'index[[:space:]]+z|whilelo|ptrue' /tmp/sve-check.s; then \
-        echo "ERROR: the arm64 compiler still emits SVE." >&2; \
-        exit 1; \
-    fi && \
-    rm -f /tmp/sve-check.c /tmp/sve-check.s && \
+insert = f"""    mkdir -p /usr/local/bin && \\
+    echo {wrapper_b64} | base64 -d > /usr/local/bin/arm64-cc && \\
+    chmod +x /usr/local/bin/arm64-cc && \\
+    for cc in gcc g++ cc c++; do \\
+        printf '%s\\n' '#!/bin/sh' 'exec /usr/local/bin/arm64-cc /usr/bin/'"$cc"' "$@"' \\
+            > /usr/local/bin/$cc; \\
+    done && \\
+    chmod +x /usr/local/bin/gcc /usr/local/bin/g++ /usr/local/bin/cc /usr/local/bin/c++ && \\
+    export PATH="/usr/local/bin:${{PATH}}" && \\
+    printf '%s\\n' 'void fill(int *p, int n) {{ for (int i = 0; i < n; ++i) p[i] = i; }}' > /tmp/sve-check.c && \\
+    /usr/local/bin/gcc -O3 -S -o /tmp/sve-check.asm /tmp/sve-check.c && \\
+    /usr/local/bin/g++ -O3 -S -o /tmp/sve-check-cxx.asm -x c++ /tmp/sve-check.c && \\
+    echo "arm64 gcc arch:" && grep -E '^[[:space:]]*\\.arch' /tmp/sve-check.asm || true && \\
+    echo "arm64 g++ arch:" && grep -E '^[[:space:]]*\\.arch' /tmp/sve-check-cxx.asm || true && \\
+    if grep -E 'index[[:space:]]+z|whilelo|ptrue|\\.arch_extension sve' /tmp/sve-check.asm /tmp/sve-check-cxx.asm; then \\
+        echo "ERROR: the arm64 compiler still emits SVE." >&2; \\
+        exit 1; \\
+    fi && \\
+    rm -f /tmp/sve-check.c /tmp/sve-check.asm /tmp/sve-check-cxx.asm && \\
 """
 if needle not in text:
     sys.exit(f"Dockerfile build step not found in {dockerfile}")
