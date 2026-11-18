@@ -65,11 +65,13 @@ if [ "${#tar_gz[@]}" -gt 0 ]; then
         if [ -n "$existing" ]; then
             gh api --method DELETE "${existing#https://api.github.com/}" >/dev/null
         fi
+        # The asset upload endpoint is on uploads.github.com. The api.github.com
+        # path answers 404.
         gh api --method POST \
             -H "Accept: application/vnd.github+json" \
             -H "Content-Type: application/octet-stream" \
             --input "$file" \
-            "repos/${repo}/releases/${release_id}/assets?name=${name}" \
+            "https://uploads.github.com/repos/${repo}/releases/${release_id}/assets?name=${name}" \
             --jq '"Uploaded \( .name ) as \( .content_type )."'
     done
 fi
