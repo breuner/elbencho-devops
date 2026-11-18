@@ -4,19 +4,17 @@
 # SPDX-License-Identifier: GPL-3.0-only
 #
 # The arm64 image is built on a GitHub runner whose compiler defaults to a
-# newer architecture than Cortex-A78AE. That default emits SVE at -O3, and
-# this CPU does not implement SVE. Patch the checked-out Dockerfile so C and
-# C++ are compiled for armv8.2-a plus the extensions this CPU does have,
-# including CRC and crypto for the AWS SDK. Assembly files keep their own
-# .arch line, and a translation unit that already asks for SVE is left alone
-# so optional kernels can still be built.
+# newer architecture than Cortex-A72 or Cortex-A78AE. Patch the checked-out
+# Dockerfile so C and C++ use the same baseline as the static arm64 package,
+# armv8-a+crc+crypto+simd. Assembly files keep their own .arch line, and a
+# translation unit that already asks for SVE is left alone.
 
 import base64
 import sys
 from pathlib import Path
 
-# GCC names the rounding-multiply extension rdma. An output file ending in .s
-# must not be treated as an assembly source, or the march flag is skipped.
+# An output file ending in .s must not be treated as an assembly source, or
+# the march flag is skipped.
 wrapper = """#!/bin/sh
 real=$1
 shift
@@ -32,7 +30,7 @@ for a in "$@"; do
     esac
     prev=$a
 done
-exec "$real" "$@" -march=armv8.2-a+crc+crypto+fp16+dotprod+rdma+rcpc+flagm
+exec "$real" "$@" -march=armv8-a+crc+crypto+simd
 """
 wrapper_b64 = base64.b64encode(wrapper.encode()).decode()
 
