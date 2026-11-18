@@ -56,6 +56,10 @@ jobs:
           esac
           archive="elbencho-docker-archive-${ARCH}.tar.gz"
           mkdir -p release
+          if [ "$ARCH" = arm64 ]; then
+            # The runner compiler otherwise emits SVE. Cortex-A78AE has no SVE.
+            python3 scripts/pin-docker-arm64-march.py
+          fi
           # The default GitHub-hosted docker driver rejects the docker exporter
           # (--output type=docker). docker save writes the same archive, and
           # docker load reads it after gzip without a separate decompress step.

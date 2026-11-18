@@ -33,7 +33,8 @@ keeps its title and notes.
 - `elbencho-docker-archive-arm64.tar.gz`
 
 The docker archives are gzip-compressed `docker save` images of
-`elbencho:latest`. Load one directly:
+`elbencho:latest`. The arm64 image keeps CRC and crypto for the AWS SDK and
+does not use SVE, so it runs on CPUs such as Cortex-A78AE. Load one directly:
 
 ```bash
 docker load -i elbencho-docker-archive-amd64.tar.gz
