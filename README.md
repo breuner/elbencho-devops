@@ -48,7 +48,7 @@ upload.
 ## Pull requests
 
 [`elbencho-pr-watch.yml`](.github/workflows/elbencho-pr-watch.yml) checks every
-five minutes for an open pull request in `breuner/elbencho` whose head commit
+fifteen minutes for an open pull request in `breuner/elbencho` whose head commit
 has not been tested yet. It starts
 [`elbencho-pr-test.yml`](.github/workflows/elbencho-pr-test.yml) for that
 commit. A newer commit on the same request replaces the run that is already
