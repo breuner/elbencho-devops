@@ -14,8 +14,18 @@ source_repo=breuner/elbencho
 workflow_repo=breuner/elbencho-devops
 workflow=elbencho-pr-test.yml
 
-prs=$(gh pr list --repo "$source_repo" --state open --limit 50 \
-    --json number,headRefOid)
+# The workflow token can start runs in this repository, but it cannot read
+# pull requests in breuner/elbencho. That listing uses the status token.
+if [ -z "${ELBENCHO_STATUS_TOKEN:-}" ]; then
+    echo "ELBENCHO_STATUS_TOKEN is required to list pull requests." >&2
+    exit 1
+fi
+if ! prs=$(GH_TOKEN="$ELBENCHO_STATUS_TOKEN" gh pr list --repo "$source_repo" \
+    --state open --limit 50 --json number,headRefOid); then
+    echo "Could not list pull requests." >&2
+    echo "ELBENCHO_STATUS_TOKEN needs Pull requests: Read on ${source_repo}." >&2
+    exit 1
+fi
 runs=$(gh run list --repo "$workflow_repo" --workflow "$workflow" --limit 200 \
     --json displayTitle,status)
 

@@ -30,4 +30,5 @@ jobs:
       - name: Start tests for new pull request commits
         env:
           ELBENCHO_STATUS_TOKEN: ${{ secrets.ELBENCHO_STATUS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: scripts/pr-watch.sh
