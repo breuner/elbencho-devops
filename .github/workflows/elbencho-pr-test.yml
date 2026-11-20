@@ -4,12 +4,6 @@
 name: elbencho pull request tests
 
 on:
-  workflow_call:
-    inputs:
-      ref:
-        description: elbencho git ref, such as refs/pull/123/head or master
-        required: true
-        type: string
   workflow_dispatch:
     inputs:
       ref:
@@ -17,12 +11,24 @@ on:
         required: true
         default: master
         type: string
+      pr:
+        description: Pull request number, when started for a pull request
+        required: false
+        default: ""
+        type: string
+      sha:
+        description: Commit that was current when the run was started
+        required: false
+        default: ""
+        type: string
+
+run-name: ${{ inputs.pr && format('PR {0} {1}', inputs.pr, inputs.sha) || inputs.ref }}
 
 permissions:
   contents: read
 
 concurrency:
-  group: elbencho-pr-${{ inputs.ref }}
+  group: elbencho-pr-${{ inputs.pr != '' && inputs.pr || inputs.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -74,3 +80,31 @@ jobs:
 
       - name: Build and test
         run: devops/scripts/pr-test.sh "${{ matrix.mode }}" elbencho
+
+  result:
+    name: record result
+    needs: test
+    if: always() && inputs.pr != ''
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out workflow scripts
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: breuner/elbencho-devops
+          ref: main
+          path: devops
+          persist-credentials: false
+
+      - name: Record the commit status
+        env:
+          ELBENCHO_STATUS_TOKEN: ${{ secrets.ELBENCHO_STATUS_TOKEN }}
+          RESULT: ${{ needs.test.result }}
+        run: |
+          set -euo pipefail
+          case "$RESULT" in
+            success) state=success; description="pull request tests passed" ;;
+            cancelled) state=error; description="pull request tests cancelled" ;;
+            *) state=failure; description="pull request tests failed" ;;
+          esac
+          devops/scripts/pr-status.sh "$state" "${{ inputs.sha }}" "$description" \
+            "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

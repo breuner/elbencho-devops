@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2026 Sven Breuner <sven.breuner@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: elbencho pull request watch
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: elbencho-pr-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: watch pull requests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out workflow scripts
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Start tests for new pull request commits
+        env:
+          ELBENCHO_STATUS_TOKEN: ${{ secrets.ELBENCHO_STATUS_TOKEN }}
+        run: scripts/pr-watch.sh

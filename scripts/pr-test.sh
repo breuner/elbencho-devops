@@ -3,8 +3,7 @@
 # SPDX-FileCopyrightText: 2026 Sven Breuner <sven.breuner@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-only
 #
-# Build one elbencho configuration and run the tests that the
-# elbencho-github-pr-test Jenkins job runs for that configuration.
+# Build one elbencho configuration and run its tests.
 # Argument 1 is without-s3, s3, or s3-crt.
 # Argument 2 is the elbencho source directory.
 

@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: GPL-3.0-only
 #
 # Dispatch elbencho-draft-release.yml and wait until that run finishes.
-# The Jenkins job runs this script. GITHUB_DISPATCH_TOKEN is a fine-grained
-# token that can only start workflows in breuner/elbencho-devops.
+# GITHUB_DISPATCH_TOKEN is a fine-grained token that can only start workflows
+# in breuner/elbencho-devops.
 
 import json
 import os
