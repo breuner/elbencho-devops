@@ -48,7 +48,7 @@ jobs:
             mode: s3-crt
     steps:
       - name: Check out workflow scripts
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: breuner/elbencho-devops
           ref: main
@@ -59,7 +59,7 @@ jobs:
         run: devops/scripts/free-runner-disk.sh
 
       - name: Check out elbencho
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: breuner/elbencho
           ref: ${{ inputs.ref }}
@@ -86,9 +86,12 @@ jobs:
     needs: test
     if: always() && inputs.pr != ''
     runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
     steps:
       - name: Check out workflow scripts
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: breuner/elbencho-devops
           ref: main
@@ -99,12 +102,25 @@ jobs:
         env:
           ELBENCHO_STATUS_TOKEN: ${{ secrets.ELBENCHO_STATUS_TOKEN }}
           RESULT: ${{ needs.test.result }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           case "$RESULT" in
-            success) state=success; description="pull request tests passed" ;;
-            cancelled) state=error; description="pull request tests cancelled" ;;
-            *) state=failure; description="pull request tests failed" ;;
+            success)
+              state=success
+              description="pull request tests passed"
+              ;;
+            cancelled)
+              state=error
+              description="pull request tests cancelled"
+              ;;
+            *)
+              state=failure
+              description=$(devops/scripts/pr-failure-excerpt.sh || true)
+              if [ -z "$description" ]; then
+                description="pull request tests failed"
+              fi
+              ;;
           esac
-          devops/scripts/pr-status.sh "$state" "${{ inputs.sha }}" "$description" \
-            "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          devops/scripts/pr-status.sh "$state" "${{ inputs.sha }}" "$description" "$run_url"

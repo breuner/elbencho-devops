@@ -52,7 +52,8 @@ five minutes for an open pull request in `breuner/elbencho` whose head commit
 has not been tested yet. It starts
 [`elbencho-pr-test.yml`](.github/workflows/elbencho-pr-test.yml) for that
 commit. A newer commit on the same request replaces the run that is already
-going. The elbencho repository is not changed.
+going. The elbencho repository is not changed. The run is reported on the
+pull request, and GitHub shows its console to signed-in users.
 
 The test workflow builds three configurations: without S3, with S3, and with
 the AWS CRT S3 client. Each build turns backtrace, ibverbs and rdmacm off,

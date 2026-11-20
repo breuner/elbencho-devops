@@ -13,6 +13,7 @@ state=${1:?state is required}
 sha=${2:?commit sha is required}
 description=${3:?description is required}
 target_url=${4:-}
+description=${description:0:140}
 
 if [ -z "${ELBENCHO_STATUS_TOKEN:-}" ] || [ -z "$sha" ]; then
     echo "Commit status was not recorded."
