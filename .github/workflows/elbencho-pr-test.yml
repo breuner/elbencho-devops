@@ -1,0 +1,76 @@
+# SPDX-FileCopyrightText: 2026 Sven Breuner <sven.breuner@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: elbencho pull request tests
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: elbencho git ref, such as refs/pull/123/head or master
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: elbencho git ref to test
+        required: true
+        default: master
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: elbencho-pr-${{ inputs.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: without S3
+            mode: without-s3
+          - name: S3
+            mode: s3
+          - name: S3 CRT
+            mode: s3-crt
+    steps:
+      - name: Check out workflow scripts
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: breuner/elbencho-devops
+          ref: main
+          path: devops
+          persist-credentials: false
+
+      - name: Free disk space
+        run: devops/scripts/free-runner-disk.sh
+
+      - name: Check out elbencho
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: breuner/elbencho
+          ref: ${{ inputs.ref }}
+          path: elbencho
+          persist-credentials: false
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake git pkg-config \
+            libaio-dev libboost-filesystem-dev libboost-json-dev \
+            libboost-program-options-dev libboost-thread-dev \
+            libcurl4-openssl-dev libncurses-dev libnuma-dev libssl-dev zlib1g-dev
+          devops/scripts/install-test-tools.sh
+
+      - name: Build and test
+        run: devops/scripts/pr-test.sh "${{ matrix.mode }}" elbencho

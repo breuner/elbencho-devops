@@ -44,3 +44,19 @@ docker load -i elbencho-docker-archive-amd64.tar.gz
 Static Linux executables are tested with `tests/run-tests.sh -a -j 4` before
 upload. The Windows executable is tested with `tests/run-tests.sh -j 4` before
 upload.
+
+## Pull requests
+
+[`elbencho-pr-test.yml`](.github/workflows/elbencho-pr-test.yml) builds and
+tests an elbencho ref on a GitHub-hosted runner. A pull request in
+`breuner/elbencho` starts it through `.github/workflows/pr-test.yml` in that
+repository. The run replaces the previous run for the same request.
+
+It builds the same three configurations as the `elbencho-github-pr-test`
+Jenkins job: without S3, with S3, and with the AWS CRT S3 client. Each build
+turns backtrace, ibverbs and rdmacm off, turns mimalloc on, and then runs
+`tests/run-tests.sh -a -j 4` and `tools/test-examples.sh -b`. The CRT build
+also runs the random I/O examples. The S3 build additionally runs the
+single-host and two-service S3 examples against a private libreFS server.
+The hosted runner is the isolation boundary, so the tests do not use the
+chroot from the Jenkins job.
