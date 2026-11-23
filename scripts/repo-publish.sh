@@ -136,7 +136,10 @@ cp -a "$site"/. "$pages"/
     git -c user.name="Sven Breuner" -c user.email="sven.breuner@gmail.com" \
         commit -m "Publish the elbencho package repository for ${tag}."
     git remote add origin https://github.com/breuner/elbencho.git
-    git -c http.extraheader="AUTHORIZATION: bearer ${token}" \
+    # The workflow checkout installs a credential helper for this repository.
+    # Clear it so the push to elbencho uses only the release token.
+    git -c credential.helper= \
+        -c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${token}" \
         push --force origin HEAD:gh-pages
 )
 
