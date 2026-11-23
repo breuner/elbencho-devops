@@ -135,12 +135,21 @@ cp -a "$site"/. "$pages"/
     git add -A
     git -c user.name="Sven Breuner" -c user.email="sven.breuner@gmail.com" \
         commit -m "Publish the elbencho package repository for ${tag}."
-    git remote add origin https://github.com/breuner/elbencho.git
-    # The workflow checkout installs a credential helper for this repository.
-    # Clear it so the push to elbencho uses only the release token.
-    git -c credential.helper= \
+    git remote add origin https://x-access-token@github.com/breuner/elbencho.git
+    # The workflow checkout installs a credential helper that asks for a
+    # username and never reaches the extra header. Give git the release
+    # token through an askpass helper instead.
+    askpass=$(mktemp)
+    cat > "$askpass" <<EOF
+#!/bin/sh
+printf '%s\n' '${token}'
+EOF
+    chmod 700 "$askpass"
+    GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 \
+        git -c credential.helper= \
         -c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${token}" \
         push --force origin HEAD:gh-pages
+    rm -f "$askpass"
 )
 
 export GH_TOKEN=$token
