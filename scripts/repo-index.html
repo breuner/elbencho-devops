@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>elbencho packages</title>
+<style>
+  body { font-family: sans-serif; line-height: 1.5; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+  pre { background: #f4f4f4; padding: 0.8rem 1rem; overflow: auto; }
+  code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+</style>
+</head>
+<body>
+<h1>elbencho packages</h1>
+<p>These are the latest stable packages for RHEL 8, 9 and 10, and for Ubuntu 24.04 and 26.04, on x86_64 and aarch64.</p>
+
+<h2>RHEL, Rocky Linux, and AlmaLinux</h2>
+<pre><code>sudo curl -fsSL https://breuner.github.io/elbencho-devops/elbencho.repo -o /etc/yum.repos.d/elbencho.repo
+sudo dnf install elbencho</code></pre>
+<p>The repository file selects the RHEL major version and the architecture.</p>
+
+<h2>Ubuntu</h2>
+<pre><code>curl -fsSL https://breuner.github.io/elbencho-devops/elbencho.gpg | sudo tee /etc/apt/keyrings/elbencho.asc &gt;/dev/null
+echo "deb [signed-by=/etc/apt/keyrings/elbencho.asc] https://breuner.github.io/elbencho-devops/apt $(. /etc/os-release &amp;&amp; echo $VERSION_CODENAME) main" | sudo tee /etc/apt/sources.list.d/elbencho.list &gt;/dev/null
+sudo apt update &amp;&amp; sudo apt install elbencho</code></pre>
+<p>The Ubuntu codename comes from the machine. Apt selects the architecture.</p>
+</body>
+</html>

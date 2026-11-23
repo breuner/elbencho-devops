@@ -67,20 +67,21 @@ against a libreFS server started for that run.
 The latest stable packages are published for RHEL 8, 9 and 10 (built on Rocky
 Linux) and for Ubuntu 24.04 and 26.04, each for x86_64 and aarch64. One yum
 repository file selects the release and the architecture. Apt reads the Ubuntu
-codename from the machine and selects the architecture itself.
+codename from the machine and selects the architecture itself. The same
+commands are published at https://breuner.github.io/elbencho-devops/.
 
 RHEL, Rocky Linux, and AlmaLinux:
 
 ```bash
-sudo curl -fsSL https://breuner.github.io/elbencho/elbencho.repo -o /etc/yum.repos.d/elbencho.repo
+sudo curl -fsSL https://breuner.github.io/elbencho-devops/elbencho.repo -o /etc/yum.repos.d/elbencho.repo
 sudo dnf install elbencho
 ```
 
 Ubuntu:
 
 ```bash
-curl -fsSL https://breuner.github.io/elbencho/elbencho.gpg | sudo tee /etc/apt/keyrings/elbencho.asc >/dev/null
-echo "deb [signed-by=/etc/apt/keyrings/elbencho.asc] https://breuner.github.io/elbencho/apt $(. /etc/os-release && echo $VERSION_CODENAME) main" | sudo tee /etc/apt/sources.list.d/elbencho.list >/dev/null
+curl -fsSL https://breuner.github.io/elbencho-devops/elbencho.gpg | sudo tee /etc/apt/keyrings/elbencho.asc >/dev/null
+echo "deb [signed-by=/etc/apt/keyrings/elbencho.asc] https://breuner.github.io/elbencho-devops/apt $(. /etc/os-release && echo $VERSION_CODENAME) main" | sudo tee /etc/apt/sources.list.d/elbencho.list >/dev/null
 sudo apt update && sudo apt install elbencho
 ```
 

@@ -3,16 +3,15 @@
 # SPDX-FileCopyrightText: 2026 Sven Breuner <sven.breuner@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-only
 #
-# Replace the elbencho GitHub Pages package repository with the packages in
-# the artifact directory. The site contains only this build. The push updates
-# the gh-pages branch and no other branch.
+# Build the elbencho package repository site from the packages in the artifact
+# directory. The site contains only this build. The workflow uploads it with
+# actions/upload-pages-artifact and deploys it with actions/deploy-pages.
 
 set -euo pipefail
 
 artifacts=${1:?artifact directory is required}
+output=${2:?output directory is required}
 tag=${TAG:?TAG is required}
-token=${ELBENCHO_RELEASE_TOKEN:?ELBENCHO_RELEASE_TOKEN is required}
-token=${token//[$'\r\n']/}
 key_text=${ELBENCHO_REPO_GPG_KEY:?ELBENCHO_REPO_GPG_KEY is required}
 
 site=$(mktemp -d)
@@ -83,11 +82,11 @@ done < <(find "$site/rpm" -mindepth 2 -maxdepth 2 -type d)
 cat > "$site/elbencho.repo" <<'EOF'
 [elbencho]
 name=elbencho
-baseurl=https://breuner.github.io/elbencho/rpm/$releasever/$basearch
+baseurl=https://breuner.github.io/elbencho-devops/rpm/$releasever/$basearch
 enabled=1
 gpgcheck=1
 repo_gpgcheck=0
-gpgkey=https://breuner.github.io/elbencho/elbencho.gpg
+gpgkey=https://breuner.github.io/elbencho-devops/elbencho.gpg
 EOF
 
 sign_apt() {
@@ -128,36 +127,10 @@ EOF
 sign_apt noble
 sign_apt resolute
 
-pages=$(mktemp -d)
-git init -b gh-pages "$pages"
-cp -a "$site"/. "$pages"/
-(
-    cd "$pages"
-    git add -A
-    git -c user.name="Sven Breuner" -c user.email="sven.breuner@gmail.com" \
-        commit -m "Publish the elbencho package repository for ${tag}."
-    git remote add origin https://github.com/breuner/elbencho.git
-    # The git endpoint takes the token as HTTP basic auth, which is how
-    # actions/checkout authenticates. A bearer header is rejected there.
-    basic=$(printf 'x-access-token:%s' "$token" | base64 -w 0)
-    GIT_TERMINAL_PROMPT=0 \
-        git -c credential.helper= \
-        -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${basic}" \
-        push --force origin HEAD:gh-pages
-)
+cp "$(dirname "$0")/repo-index.html" "$site/index.html"
 
-export GH_TOKEN=$token
-if gh api repos/breuner/elbencho/pages >/dev/null 2>&1; then
-    echo "GitHub Pages is already enabled."
-else
-    if ! gh api --method POST repos/breuner/elbencho/pages \
-        -f build_type=legacy \
-        -f source[branch]=gh-pages \
-        -f source[path]=/ >/dev/null; then
-        echo "WARNING: the release token could not enable GitHub Pages." >&2
-        echo "Enable Pages for breuner/elbencho from the gh-pages branch, path /." >&2
-    fi
-fi
-
-echo "Published https://breuner.github.io/elbencho/ for ${tag}."
-rm -rf "$gnupg_home" "$pages"
+mkdir -p "$output"
+rm -rf "${output:?}/"*
+cp -a "$site"/. "$output"/
+echo "Prepared the package repository for ${tag} in ${output}."
+rm -rf "$gnupg_home"

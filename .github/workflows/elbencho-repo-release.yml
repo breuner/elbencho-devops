@@ -118,6 +118,11 @@ jobs:
     needs: package
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    permissions:
+      actions: write
+      contents: read
+      pages: write
+      id-token: write
     steps:
       - name: Check out workflow scripts
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -137,6 +142,26 @@ jobs:
       - name: Publish the package repository
         env:
           TAG: ${{ inputs.tag }}
-          ELBENCHO_RELEASE_TOKEN: ${{ secrets.ELBENCHO_RELEASE_TOKEN }}
           ELBENCHO_REPO_GPG_KEY: ${{ secrets.ELBENCHO_REPO_GPG_KEY }}
-        run: scripts/repo-publish.sh artifacts
+        run: scripts/repo-publish.sh artifacts site
+
+      - name: Upload the Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  deploy:
+    name: deploy repository
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy the package repository
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
