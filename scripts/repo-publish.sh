@@ -127,6 +127,85 @@ EOF
 sign_apt noble
 sign_apt resolute
 
+write_listing() {
+    local dir=$1 heading=$2
+    local base
+    {
+        cat <<EOF
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${heading}</title>
+<style>
+  body { font-family: sans-serif; line-height: 1.5; max-width: 64rem; margin: 2rem auto; padding: 0 1rem; }
+  li { margin: 0.3rem 0; }
+</style>
+</head>
+<body>
+<p><a href="../">Back</a></p>
+<h1>${heading}</h1>
+<ul>
+EOF
+        local sub
+        for sub in "$dir"/*/; do
+            [ -d "$sub" ] || continue
+            base=$(basename "$sub")
+            [ "$base" = repodata ] && continue
+            printf '<li><a href="%s/">%s/</a></li>\n' "$base" "$base"
+        done
+        local file
+        shopt -s nullglob
+        for file in "$dir"/*.rpm "$dir"/*.deb; do
+            base=$(basename "$file")
+            printf '<li><a href="%s">%s</a></li>\n' "$base" "$base"
+        done
+        shopt -u nullglob
+        printf '%s\n' '</ul>' '</body>' '</html>'
+    } > "$dir/index.html"
+}
+
+write_listing "$site/rpm" "rpm packages"
+write_listing "$site/rpm/8" "RHEL 8"
+write_listing "$site/rpm/8/x86_64" "RHEL 8 x86_64"
+write_listing "$site/rpm/8/aarch64" "RHEL 8 aarch64"
+write_listing "$site/rpm/9" "RHEL 9"
+write_listing "$site/rpm/9/x86_64" "RHEL 9 x86_64"
+write_listing "$site/rpm/9/aarch64" "RHEL 9 aarch64"
+write_listing "$site/rpm/10" "RHEL 10"
+write_listing "$site/rpm/10/x86_64" "RHEL 10 x86_64"
+write_listing "$site/rpm/10/aarch64" "RHEL 10 aarch64"
+mkdir -p "$site/apt"
+write_listing "$site/apt/pool" "deb packages"
+write_listing "$site/apt/pool/noble" "Ubuntu 24.04 (noble)"
+write_listing "$site/apt/pool/noble/amd64" "Ubuntu 24.04 amd64"
+write_listing "$site/apt/pool/noble/arm64" "Ubuntu 24.04 arm64"
+write_listing "$site/apt/pool/resolute" "Ubuntu 26.04 (resolute)"
+write_listing "$site/apt/pool/resolute/amd64" "Ubuntu 26.04 amd64"
+write_listing "$site/apt/pool/resolute/arm64" "Ubuntu 26.04 arm64"
+# The apt root has metadata next to the pool. List only the downloadable packages.
+cat > "$site/apt/index.html" <<'EOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>deb packages</title>
+<style>
+  body { font-family: sans-serif; line-height: 1.5; max-width: 64rem; margin: 2rem auto; padding: 0 1rem; }
+</style>
+</head>
+<body>
+<p><a href="../">Back</a></p>
+<h1>deb packages</h1>
+<ul>
+<li><a href="pool/">pool/</a></li>
+</ul>
+</body>
+</html>
+EOF
+
 cp "$(dirname "$0")/repo-index.html" "$site/index.html"
 
 mkdir -p "$output"

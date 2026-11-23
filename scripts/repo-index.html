@@ -15,17 +15,25 @@
 <body>
 <p class="logo"><img src="https://raw.githubusercontent.com/breuner/elbencho/master/graphics/elbencho-logo.svg" alt="elbencho logo"></p>
 <h1>elbencho packages</h1>
-<p>These are the latest stable packages for RHEL 8, 9 and 10, and for Ubuntu 24.04 and 26.04, on x86_64 and aarch64. The source code is in the <a href="https://github.com/breuner/elbencho">elbencho repository</a>.</p>
+<p>These are repositories for the latest stable packages for RHEL 8, 9 and 10, and for Ubuntu 24.04 and 26.04, on x86_64 and aarch64. The source code is in the <a href="https://github.com/breuner/elbencho">elbencho repository</a>.</p>
 
 <h2>RHEL, Rocky Linux, and AlmaLinux</h2>
-<pre><code>sudo curl -fsSL https://breuner.github.io/elbencho-devops/elbencho.repo -o /etc/yum.repos.d/elbencho.repo
-sudo dnf install elbencho</code></pre>
 <p>The repository file selects the RHEL major version and the architecture.</p>
+<p>Save the repository file.</p>
+<pre><code>sudo curl -fsSL https://breuner.github.io/elbencho-devops/elbencho.repo -o /etc/yum.repos.d/elbencho.repo</code></pre>
+<p>Install elbencho.</p>
+<pre><code>sudo dnf install elbencho</code></pre>
 
 <h2>Ubuntu</h2>
-<pre><code>curl -fsSL https://breuner.github.io/elbencho-devops/elbencho.gpg | sudo tee /etc/apt/keyrings/elbencho.asc &gt;/dev/null
-echo "deb [signed-by=/etc/apt/keyrings/elbencho.asc] https://breuner.github.io/elbencho-devops/apt $(. /etc/os-release &amp;&amp; echo $VERSION_CODENAME) main" | sudo tee /etc/apt/sources.list.d/elbencho.list &gt;/dev/null
-sudo apt update &amp;&amp; sudo apt install elbencho</code></pre>
 <p>The Ubuntu codename comes from the machine. Apt selects the architecture.</p>
+<p>Install the signing key.</p>
+<pre><code>curl -fsSL https://breuner.github.io/elbencho-devops/elbencho.gpg | sudo tee /etc/apt/keyrings/elbencho.asc &gt;/dev/null</code></pre>
+<p>Add the repository for this Ubuntu release.</p>
+<pre><code>echo "deb [signed-by=/etc/apt/keyrings/elbencho.asc] https://breuner.github.io/elbencho-devops/apt $(. /etc/os-release &amp;&amp; echo $VERSION_CODENAME) main" | sudo tee /etc/apt/sources.list.d/elbencho.list &gt;/dev/null</code></pre>
+<p>Install elbencho.</p>
+<pre><code>sudo apt update &amp;&amp; sudo apt install elbencho</code></pre>
+
+<h2>Package files</h2>
+<p>The same files can be opened directly. The <a href="rpm/">rpm</a> and <a href="apt/pool/">deb</a> directories list the package names.</p>
 </body>
 </html>

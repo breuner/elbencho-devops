@@ -6,12 +6,14 @@ GitHub Actions workflows for [elbencho](https://github.com/breuner/elbencho).
 They build draft-release artifacts, test open pull requests, and publish the
 package repositories.
 
+## Release artifacts
+
 The draft-release workflows are started with `workflow_dispatch`. They check
 out an elbencho git tag, create or reuse a draft release on
 `breuner/elbencho`, and attach artifacts. A published release for that tag is
 left unchanged.
 
-## Workflow
+### Workflow
 
 [`elbencho-draft-release.yml`](.github/workflows/elbencho-draft-release.yml)
 takes three inputs:
@@ -26,7 +28,7 @@ replaces its files on the existing draft. Release notes for a new draft are
 copied from the latest published stable elbencho release. An existing draft
 keeps its title and notes.
 
-## Artifacts
+### Artifacts
 
 - `elbencho-static-x86_64.tar.gz`, `elbencho-static.x86_64.rpm`,
   `elbencho-static_amd64.deb`
@@ -49,7 +51,7 @@ Static Linux executables are tested with `tests/run-tests.sh -a -j 4` before
 upload. The Windows executable is tested with `tests/run-tests.sh -j 4` before
 upload.
 
-## Pull requests
+## Pull request tests
 
 [`elbencho-pr-watch.yml`](.github/workflows/elbencho-pr-watch.yml) checks every
 fifteen minutes for an open pull request in `breuner/elbencho` whose head commit
@@ -69,10 +71,13 @@ against a libreFS server started for that run.
 ## Package repositories
 
 The latest stable packages are published for RHEL 8, 9 and 10 (built on Rocky
-Linux) and for Ubuntu 24.04 and 26.04, each for x86_64 and aarch64. One yum
+Linux) and for Ubuntu 24.04 and 26.04, each for x86_64 and aarch64. They are
+built with `S3_SUPPORT=1`, `SPDK_SUPPORT=1`, `IBVERBS_SUPPORT=1`,
+`RDMACM_SUPPORT=1`, `LIBFABRIC_SUPPORT=1` and `BUILD_LIBFABRIC=1`. One yum
 repository file selects the release and the architecture. Apt reads the Ubuntu
-codename from the machine and selects the architecture itself. The same
-commands are published at https://breuner.github.io/elbencho-devops/.
+codename from the machine and selects the architecture itself. The install
+commands are published at https://breuner.github.io/elbencho-devops/, and the
+package files can be browsed from there.
 
 RHEL, Rocky Linux, and AlmaLinux:
 
