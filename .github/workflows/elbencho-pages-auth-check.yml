@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 Sven Breuner <sven.breuner@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: pages auth check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: See whether the release token can list elbencho workflows
+        env:
+          GH_TOKEN: ${{ secrets.ELBENCHO_RELEASE_TOKEN }}
+        run: |
+          set +e
+          gh api repos/breuner/elbencho/actions/workflows --jq .total_count
+          echo "list_exit=$?"
