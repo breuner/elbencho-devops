@@ -12,6 +12,7 @@ set -euo pipefail
 artifacts=${1:?artifact directory is required}
 tag=${TAG:?TAG is required}
 token=${ELBENCHO_RELEASE_TOKEN:?ELBENCHO_RELEASE_TOKEN is required}
+token=${token//[$'\r\n']/}
 key_text=${ELBENCHO_REPO_GPG_KEY:?ELBENCHO_REPO_GPG_KEY is required}
 
 site=$(mktemp -d)
@@ -135,21 +136,14 @@ cp -a "$site"/. "$pages"/
     git add -A
     git -c user.name="Sven Breuner" -c user.email="sven.breuner@gmail.com" \
         commit -m "Publish the elbencho package repository for ${tag}."
-    git remote add origin https://x-access-token@github.com/breuner/elbencho.git
-    # The workflow checkout installs a credential helper that asks for a
-    # username and never reaches the extra header. Give git the release
-    # token through an askpass helper instead.
-    askpass=$(mktemp)
-    cat > "$askpass" <<EOF
-#!/bin/sh
-printf '%s\n' '${token}'
-EOF
-    chmod 700 "$askpass"
-    GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 \
+    git remote add origin https://github.com/breuner/elbencho.git
+    # The git endpoint takes the token as HTTP basic auth, which is how
+    # actions/checkout authenticates. A bearer header is rejected there.
+    basic=$(printf 'x-access-token:%s' "$token" | base64 -w 0)
+    GIT_TERMINAL_PROMPT=0 \
         git -c credential.helper= \
-        -c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${token}" \
+        -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${basic}" \
         push --force origin HEAD:gh-pages
-    rm -f "$askpass"
 )
 
 export GH_TOKEN=$token
