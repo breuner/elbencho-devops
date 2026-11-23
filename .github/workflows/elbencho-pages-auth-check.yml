@@ -20,3 +20,6 @@ jobs:
           set +e
           gh api repos/breuner/elbencho/actions/workflows --jq .total_count
           echo "list_exit=$?"
+          gh api --method POST repos/breuner/elbencho/actions/workflows/package-repository.yml/dispatches \
+            -f ref=master -f inputs[source_run]=auth-check
+          echo "dispatch_exit=$?"
