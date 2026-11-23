@@ -1,0 +1,142 @@
+# SPDX-FileCopyrightText: 2026 Sven Breuner <sven.breuner@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: elbencho package repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing elbencho git tag
+        required: true
+        type: string
+
+run-name: Repo ${{ inputs.tag }}
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: elbencho-repo-pages
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: ${{ matrix.id }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: rocky-8-x86_64
+            kind: rpm
+            image: rockylinux:8
+            runner: ubuntu-24.04
+            march: x86-64-v2
+          - id: rocky-8-aarch64
+            kind: rpm
+            image: rockylinux:8
+            runner: ubuntu-24.04-arm
+            march: armv8-a+crc+crypto+simd
+          - id: rocky-9-x86_64
+            kind: rpm
+            image: rockylinux:9
+            runner: ubuntu-24.04
+            march: x86-64-v2
+          - id: rocky-9-aarch64
+            kind: rpm
+            image: rockylinux:9
+            runner: ubuntu-24.04-arm
+            march: armv8-a+crc+crypto+simd
+          - id: rocky-10-x86_64
+            kind: rpm
+            image: rockylinux:10
+            runner: ubuntu-24.04
+            march: x86-64-v2
+          - id: rocky-10-aarch64
+            kind: rpm
+            image: rockylinux:10
+            runner: ubuntu-24.04-arm
+            march: armv8-a+crc+crypto+simd
+          - id: ubuntu-24.04-amd64
+            kind: deb
+            image: ""
+            runner: ubuntu-24.04
+            march: x86-64-v2
+          - id: ubuntu-24.04-arm64
+            kind: deb
+            image: ""
+            runner: ubuntu-24.04-arm
+            march: armv8-a+crc+crypto+simd
+          - id: ubuntu-26.04-amd64
+            kind: deb
+            image: ""
+            runner: ubuntu-26.04
+            march: x86-64-v2
+          - id: ubuntu-26.04-arm64
+            kind: deb
+            image: ""
+            runner: ubuntu-26.04-arm
+            march: armv8-a+crc+crypto+simd
+    steps:
+      - name: Check out workflow scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Free disk space
+        run: scripts/free-runner-disk.sh
+
+      - name: Check out elbencho
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: breuner/elbencho
+          ref: ${{ inputs.tag }}
+          path: elbencho
+          persist-credentials: false
+
+      - name: Build the package
+        env:
+          KIND: ${{ matrix.kind }}
+          IMAGE: ${{ matrix.image }}
+          MARCH: ${{ matrix.march }}
+          SOURCE: elbencho
+          OUTPUT: dist
+        run: scripts/repo-package.sh
+
+      - name: Upload the package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.id }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    name: publish repository
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out workflow scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install repository tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apt-utils createrepo-c dpkg-dev gnupg rpm
+
+      - name: Download packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: artifacts
+
+      - name: Publish the package repository
+        env:
+          TAG: ${{ inputs.tag }}
+          ELBENCHO_RELEASE_TOKEN: ${{ secrets.ELBENCHO_RELEASE_TOKEN }}
+          ELBENCHO_REPO_GPG_KEY: ${{ secrets.ELBENCHO_REPO_GPG_KEY }}
+        run: scripts/repo-publish.sh artifacts

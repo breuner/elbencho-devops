@@ -61,3 +61,26 @@ turns mimalloc on, and then runs `tests/run-tests.sh -a -j 4` and
 `tools/test-examples.sh -b`. The CRT build also runs the random I/O examples.
 The S3 build additionally runs the single-host and two-service S3 examples
 against a libreFS server started for that run.
+
+## Package repositories
+
+The latest stable packages are published for RHEL 8, 9 and 10 (built on Rocky
+Linux) and for Ubuntu 24.04 and 26.04, each for x86_64 and aarch64. One yum
+repository file selects the release and the architecture. Apt reads the Ubuntu
+codename from the machine and selects the architecture itself.
+
+RHEL, Rocky Linux, and AlmaLinux:
+
+```bash
+sudo curl -fsSL https://breuner.github.io/elbencho/elbencho.repo -o /etc/yum.repos.d/elbencho.repo
+sudo dnf install elbencho
+```
+
+Ubuntu:
+
+```bash
+curl -fsSL https://breuner.github.io/elbencho/elbencho.gpg | sudo tee /etc/apt/keyrings/elbencho.asc >/dev/null
+echo "deb [signed-by=/etc/apt/keyrings/elbencho.asc] https://breuner.github.io/elbencho/apt $(. /etc/os-release && echo $VERSION_CODENAME) main" | sudo tee /etc/apt/sources.list.d/elbencho.list >/dev/null
+sudo apt update && sudo apt install elbencho
+```
+
