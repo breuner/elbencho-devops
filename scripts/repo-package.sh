@@ -63,6 +63,15 @@ for a in "\$@"; do
     esac
     prev=\$a
 done
+link=1
+for a in "\$@"; do
+    case "\$a" in
+        -c|-S|-E|-M|-MM) link=0 ;;
+    esac
+done
+if [ "\$link" = 1 ]; then
+    exec "\$real" "\$@" -march=${march} -llz4
+fi
 exec "\$real" "\$@" -march=${march}
 EOF
     run_root chmod 755 /usr/local/bin/repo-cc
@@ -132,6 +141,10 @@ install_meson() {
     run_root "$py" -m pip install --upgrade --break-system-packages \
         meson ninja pyelftools jinja2 \
         || run_root "$py" -m pip install --upgrade meson ninja pyelftools jinja2
+    if [ "$py" != python3 ]; then
+        run_root ln -sfn "$(command -v "$py")" /usr/local/bin/python3
+        run_root ln -sfn "$(command -v "$py")" /usr/local/bin/python
+    fi
     hash -r
     command -v meson
     command -v ninja
@@ -150,7 +163,7 @@ prepare_rpm() {
         libaio-devel libcurl-devel ncurses-devel numactl-devel openssl-devel \
         libuuid-devel zlib-devel rdma-core-devel \
         nasm diffutils findutils tar gzip which curl ca-certificates \
-        rpm-build python3 python3-pip
+        rpm-build python3 python3-pip lz4-devel
     local gcc_major
     gcc_major=$(gcc -dumpversion | cut -d. -f1)
     if [ "$gcc_major" -lt 11 ]; then
@@ -178,7 +191,7 @@ prepare_deb() {
         libboost-thread-dev libcurl4-openssl-dev libibverbs-dev libncurses-dev libnuma-dev \
         librdmacm-dev libssl-dev libtool lintian nasm patch pkg-config \
         python3 python3-pip python3-pyelftools python3-jinja2 python3-tabulate \
-        uuid-dev zlib1g-dev ca-certificates curl
+        uuid-dev zlib1g-dev ca-certificates curl liblz4-dev
     install_meson
 }
 
