@@ -6,7 +6,8 @@
 # Build one elbencho rpm or deb with S3, SPDK, rdmacm and libfabric.
 # KIND=rpm and IMAGE set a container (rockylinux:8, rockylinux:9, rockylinux:10).
 # KIND=deb runs on the host, which is the matching Ubuntu runner.
-# MARCH is appended by compiler wrappers so a later -march=native cannot win.
+# Compiler wrappers drop -march and -mcpu from the build, then append MARCH.
+# That keeps a runner CPU such as Neoverse or -march=native from winning.
 
 set -euo pipefail
 
@@ -48,7 +49,7 @@ install_compiler_wrappers() {
 
     run_root mkdir -p /usr/local/bin
     run_root tee /usr/local/bin/repo-cc >/dev/null <<EOF
-#!/bin/sh
+#!/bin/bash
 real=\$1
 shift
 prev=
@@ -64,15 +65,32 @@ for a in "\$@"; do
     prev=\$a
 done
 link=1
+skip=0
+args=()
 for a in "\$@"; do
+    if [ "\$skip" = 1 ]; then
+        skip=0
+        continue
+    fi
     case "\$a" in
-        -c|-S|-E|-M|-MM) link=0 ;;
+        -mcpu|-march)
+            skip=1
+            ;;
+        -mcpu=*|-march=*)
+            ;;
+        -c|-S|-E|-M|-MM)
+            link=0
+            args+=("\$a")
+            ;;
+        *)
+            args+=("\$a")
+            ;;
     esac
 done
 if [ "\$link" = 1 ]; then
-    exec "\$real" "\$@" -march=${march} -llz4
+    exec "\$real" "\${args[@]}" -march=${march} -llz4
 fi
-exec "\$real" "\$@" -march=${march}
+exec "\$real" "\${args[@]}" -march=${march}
 EOF
     run_root chmod 755 /usr/local/bin/repo-cc
     local cc target
@@ -139,8 +157,8 @@ install_meson() {
         fi
     fi
     run_root "$py" -m pip install --upgrade --break-system-packages \
-        meson ninja pyelftools jinja2 \
-        || run_root "$py" -m pip install --upgrade meson ninja pyelftools jinja2
+        meson ninja pyelftools jinja2 tabulate \
+        || run_root "$py" -m pip install --upgrade meson ninja pyelftools jinja2 tabulate
     if [ "$py" != python3 ]; then
         run_root ln -sfn "$(command -v "$py")" /usr/local/bin/python3
         run_root ln -sfn "$(command -v "$py")" /usr/local/bin/python
@@ -158,7 +176,8 @@ prepare_rpm() {
     else
         run_root dnf config-manager --set-enabled crb
     fi
-    run_root dnf install -y \
+    # curl-minimal is already installed in the Rocky images and conflicts with curl.
+    run_root dnf install -y --allowerasing \
         autoconf automake gcc gcc-c++ make cmake git libtool patch pkgconf \
         libaio-devel libcurl-devel ncurses-devel numactl-devel openssl-devel \
         libuuid-devel zlib-devel rdma-core-devel \
