@@ -1,11 +1,15 @@
 # elbencho-devops
 
-GitHub Actions workflows that build draft-release artifacts for
-[elbencho](https://github.com/breuner/elbencho).
+<img src="https://raw.githubusercontent.com/breuner/elbencho/master/graphics/elbencho-logo.svg" width="50%" height="50%" alt="elbencho logo" align="center"/>
 
-The workflows are started with `workflow_dispatch`. They check out an elbencho
-git tag, create or reuse a draft release on `breuner/elbencho`, and attach
-artifacts. A published release for that tag is left unchanged.
+GitHub Actions workflows for [elbencho](https://github.com/breuner/elbencho).
+They build draft-release artifacts, test open pull requests, and publish the
+package repositories.
+
+The draft-release workflows are started with `workflow_dispatch`. They check
+out an elbencho git tag, create or reuse a draft release on
+`breuner/elbencho`, and attach artifacts. A published release for that tag is
+left unchanged.
 
 ## Workflow
 

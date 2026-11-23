@@ -5,14 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>elbencho packages</title>
 <style>
-  body { font-family: sans-serif; line-height: 1.5; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
-  pre { background: #f4f4f4; padding: 0.8rem 1rem; overflow: auto; }
+  body { font-family: sans-serif; line-height: 1.5; max-width: 64rem; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+  .logo { text-align: center; margin: 0 0 1.5rem; }
+  .logo img { width: 50%; height: auto; }
+  pre { background: #f4f4f4; padding: 0.8rem 1rem; white-space: pre-wrap; overflow-wrap: anywhere; }
   code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 </style>
 </head>
 <body>
+<p class="logo"><img src="https://raw.githubusercontent.com/breuner/elbencho/master/graphics/elbencho-logo.svg" alt="elbencho logo"></p>
 <h1>elbencho packages</h1>
-<p>These are the latest stable packages for RHEL 8, 9 and 10, and for Ubuntu 24.04 and 26.04, on x86_64 and aarch64.</p>
+<p>These are the latest stable packages for RHEL 8, 9 and 10, and for Ubuntu 24.04 and 26.04, on x86_64 and aarch64. The source code is in the <a href="https://github.com/breuner/elbencho">elbencho repository</a>.</p>
 
 <h2>RHEL, Rocky Linux, and AlmaLinux</h2>
 <pre><code>sudo curl -fsSL https://breuner.github.io/elbencho-devops/elbencho.repo -o /etc/yum.repos.d/elbencho.repo
