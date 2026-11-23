@@ -8,6 +8,9 @@
 # KIND=deb runs on the host, which is the matching Ubuntu runner.
 # Compiler wrappers drop -march and -mcpu from the build, then append MARCH.
 # That keeps a runner CPU such as Neoverse or -march=native from winning.
+# On Arm, uname -p is reported as unknown so SPDK builds DPDK for generic
+# armv8-a instead of the runner CPU. The runner CPU's atomics do not assemble
+# for that baseline and would not run on older Arm machines.
 
 set -euo pipefail
 
@@ -105,6 +108,18 @@ EOF
             | run_root tee "/usr/local/bin/${cc}" >/dev/null
         run_root chmod 755 "/usr/local/bin/${cc}"
     done
+    if [[ "$march" == armv8* ]]; then
+        # SPDK selects DPDK's native platform unless uname -p is "unknown".
+        run_root tee /usr/local/bin/uname >/dev/null <<'EOF'
+#!/bin/sh
+if [ "$1" = "-p" ] || [ "$1" = "--processor" ]; then
+    echo unknown
+    exit 0
+fi
+exec /usr/bin/uname "$@"
+EOF
+        run_root chmod 755 /usr/local/bin/uname
+    fi
     export PATH="/usr/local/bin:${PATH}"
 
     local tmp
@@ -156,9 +171,11 @@ install_meson() {
             run_root apt-get install -y python3-pip
         fi
     fi
-    run_root "$py" -m pip install --upgrade --break-system-packages \
+    # --ignore-installed: Ubuntu already has these from apt, and pip cannot
+    # uninstall a distro package that has no RECORD file.
+    run_root "$py" -m pip install --break-system-packages --ignore-installed \
         meson ninja pyelftools jinja2 tabulate \
-        || run_root "$py" -m pip install --upgrade meson ninja pyelftools jinja2 tabulate
+        || run_root "$py" -m pip install --ignore-installed meson ninja pyelftools jinja2 tabulate
     if [ "$py" != python3 ]; then
         run_root ln -sfn "$(command -v "$py")" /usr/local/bin/python3
         run_root ln -sfn "$(command -v "$py")" /usr/local/bin/python
