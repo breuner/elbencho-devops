@@ -3,8 +3,8 @@
 <img src="https://raw.githubusercontent.com/breuner/elbencho/master/graphics/elbencho-logo.svg" width="50%" height="50%" alt="elbencho logo" align="center"/>
 
 GitHub Actions workflows for [elbencho](https://github.com/breuner/elbencho).
-They build draft-release artifacts, test open pull requests, and publish the
-package repositories.
+They build draft-release artifacts, test open pull requests, publish the
+package repositories, and publish the container images.
 
 ## Release artifacts
 
@@ -93,4 +93,19 @@ curl -fsSL https://breuner.github.io/elbencho-devops/elbencho.gpg | sudo tee /et
 echo "deb [signed-by=/etc/apt/keyrings/elbencho.asc] https://breuner.github.io/elbencho-devops/apt $(. /etc/os-release && echo $VERSION_CODENAME) main" | sudo tee /etc/apt/sources.list.d/elbencho.list >/dev/null
 sudo apt update && sudo apt install elbencho
 ```
+
+## Container images
+
+[`elbencho-dockerhub-release.yml`](.github/workflows/elbencho-dockerhub-release.yml)
+publishes a git tag to [Docker Hub](https://hub.docker.com/r/breuner/elbencho)
+for `linux/amd64` and `linux/arm64`. The images are built from that elbencho
+tag with the local Dockerfiles.
+
+- `Dockerfile.ubuntu2604.local` is tagged `latest`, `master-ubuntu2604`, and
+  the git tag.
+- `Dockerfile.alpine.local` is tagged `master-alpine`.
+- `Dockerfile.ubuntu-cuda-multiarch.local` is tagged
+  `master-ubuntu-cuda-multiarch`.
+
+The arm64 images use `-march=armv8-a+crc+crypto+simd`.
 

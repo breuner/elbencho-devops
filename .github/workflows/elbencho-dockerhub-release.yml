@@ -1,0 +1,208 @@
+# SPDX-FileCopyrightText: 2026 Sven Breuner <sven.breuner@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: elbencho docker hub
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing elbencho git tag
+        required: true
+        type: string
+
+run-name: Docker ${{ inputs.tag }}
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: elbencho-dockerhub
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: check tag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check the tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+            echo "ERROR: tag is empty or not a container tag: ${TAG}" >&2
+            exit 1
+          fi
+          if ! refs=$(git ls-remote --tags https://github.com/breuner/elbencho.git "refs/tags/${TAG}"); then
+            echo "ERROR: could not read tags from breuner/elbencho" >&2
+            exit 1
+          fi
+          if [ -z "$refs" ]; then
+            echo "ERROR: tag not found in breuner/elbencho: ${TAG}" >&2
+            exit 1
+          fi
+
+  build:
+    name: ${{ matrix.id }}
+    needs: check
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: ubuntu2604-amd64
+            flavor: ubuntu2604
+            dockerfile: build_helpers/docker/Dockerfile.ubuntu2604.local
+            runner: ubuntu-24.04
+            platform: linux/amd64
+            pin: "no"
+          - id: ubuntu2604-arm64
+            flavor: ubuntu2604
+            dockerfile: build_helpers/docker/Dockerfile.ubuntu2604.local
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            pin: "yes"
+          - id: alpine-amd64
+            flavor: alpine
+            dockerfile: build_helpers/docker/Dockerfile.alpine.local
+            runner: ubuntu-24.04
+            platform: linux/amd64
+            pin: "no"
+          - id: alpine-arm64
+            flavor: alpine
+            dockerfile: build_helpers/docker/Dockerfile.alpine.local
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            pin: "yes"
+          - id: cuda-amd64
+            flavor: cuda
+            dockerfile: build_helpers/docker/Dockerfile.ubuntu-cuda-multiarch.local
+            runner: ubuntu-24.04
+            platform: linux/amd64
+            pin: "no"
+          - id: cuda-arm64
+            flavor: cuda
+            dockerfile: build_helpers/docker/Dockerfile.ubuntu-cuda-multiarch.local
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            pin: "yes"
+    steps:
+      - name: Check out workflow scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Free disk space
+        run: scripts/free-runner-disk.sh
+
+      - name: Check out elbencho
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: breuner/elbencho
+          ref: ${{ inputs.tag }}
+          path: elbencho
+          persist-credentials: false
+
+      - name: Pin the arm64 compiler baseline
+        if: matrix.pin == 'yes'
+        run: python3 scripts/pin-docker-arm64-march.py "elbencho/${{ matrix.dockerfile }}"
+
+      - name: Check the registry credential
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "ERROR: DOCKERHUB_TOKEN is not set." >&2
+            exit 1
+          fi
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          username: breuner
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build and push the image digest
+        id: push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        env:
+          BUILDKIT_PROGRESS: plain
+        with:
+          context: elbencho
+          file: elbencho/${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platform }}
+          pull: true
+          provenance: false
+          sbom: false
+          outputs: type=image,name=docker.io/breuner/elbencho,push-by-digest=true,name-canonical=true,push=true
+
+      - name: Save the digest
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+          NAME: ${{ matrix.id }}
+        run: |
+          set -euo pipefail
+          case "$DIGEST" in
+            sha256:*) ;;
+            *)
+              echo "ERROR: the image digest is empty or invalid." >&2
+              exit 1
+              ;;
+          esac
+          mkdir -p digest
+          printf '%s\n' "$DIGEST" > "digest/${NAME}"
+
+      - name: Upload the digest
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digest-${{ matrix.id }}
+          path: digest/${{ matrix.id }}
+          if-no-files-found: error
+
+  publish:
+    name: publish tags
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out workflow scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the registry credential
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "ERROR: DOCKERHUB_TOKEN is not set." >&2
+            exit 1
+          fi
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          username: breuner
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Download digests
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: digest-*
+          path: digests
+          merge-multiple: true
+
+      - name: Publish the multi-arch tags
+        env:
+          TAG: ${{ inputs.tag }}
+        run: scripts/dockerhub-manifests.sh digests

@@ -60,6 +60,12 @@ insert = f"""    mkdir -p /usr/local/bin && \\
     fi && \\
     rm -f /tmp/sve-check.c /tmp/sve-check.asm /tmp/sve-check-cxx.asm && \\
 """
-if needle not in text:
+# Ubuntu and CUDA indent the build step. Alpine starts the RUN with it.
+fallback = "RUN cd /root/elbencho && \\\n"
+if needle in text:
+    text = text.replace(needle, insert + needle, 1)
+elif fallback in text:
+    text = text.replace(fallback, "RUN " + insert + "cd /root/elbencho && \\\n", 1)
+else:
     sys.exit(f"Dockerfile build step not found in {dockerfile}")
-dockerfile.write_text(text.replace(needle, insert + needle, 1))
+dockerfile.write_text(text)
