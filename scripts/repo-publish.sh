@@ -127,6 +127,16 @@ EOF
 sign_apt noble
 sign_apt resolute
 
+listing_css='  body { margin: 0; background: #f4f8fa; color: #1a1a1a; font-family: system-ui, "Segoe UI", Roboto, sans-serif; line-height: 1.5; }
+  main { max-width: 64rem; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+  h1 { color: #015B84; font-size: 1.5rem; font-weight: 600; }
+  a { color: #015B84; }
+  .back { font-weight: 600; text-decoration: none; }
+  ul { list-style: none; padding: 0; margin: 1rem 0 0; }
+  li { margin: 0.5rem 0; }
+  li a { display: block; background: #fff; border: 1px solid #d5e3ea; border-radius: 8px; padding: 0.75rem 1rem; font-weight: 600; text-decoration: none; }
+  li a:hover { border-color: #48ACC3; }'
+
 write_listing() {
     local dir=$1 heading=$2
     local base
@@ -139,12 +149,12 @@ write_listing() {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${heading}</title>
 <style>
-  body { font-family: sans-serif; line-height: 1.5; max-width: 64rem; margin: 2rem auto; padding: 0 1rem; }
-  li { margin: 0.3rem 0; }
+${listing_css}
 </style>
 </head>
 <body>
-<p><a href="../">Back</a></p>
+<main>
+<p><a class="back" href="../">Back</a></p>
 <h1>${heading}</h1>
 <ul>
 EOF
@@ -162,7 +172,7 @@ EOF
             printf '<li><a href="%s">%s</a></li>\n' "$base" "$base"
         done
         shopt -u nullglob
-        printf '%s\n' '</ul>' '</body>' '</html>'
+        printf '%s\n' '</ul>' '</main>' '</body>' '</html>'
     } > "$dir/index.html"
 }
 
@@ -185,7 +195,7 @@ write_listing "$site/apt/pool/resolute" "Ubuntu 26.04 (resolute)"
 write_listing "$site/apt/pool/resolute/amd64" "Ubuntu 26.04 amd64"
 write_listing "$site/apt/pool/resolute/arm64" "Ubuntu 26.04 arm64"
 # The apt root has metadata next to the pool. List only the downloadable packages.
-cat > "$site/apt/index.html" <<'EOF'
+cat > "$site/apt/index.html" <<EOF
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -193,15 +203,17 @@ cat > "$site/apt/index.html" <<'EOF'
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>deb packages</title>
 <style>
-  body { font-family: sans-serif; line-height: 1.5; max-width: 64rem; margin: 2rem auto; padding: 0 1rem; }
+${listing_css}
 </style>
 </head>
 <body>
-<p><a href="../">Back</a></p>
+<main>
+<p><a class="back" href="../">Back</a></p>
 <h1>deb packages</h1>
 <ul>
 <li><a href="pool/">pool/</a></li>
 </ul>
+</main>
 </body>
 </html>
 EOF
